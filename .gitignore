@@ -1,0 +1,7 @@
+.*
+!.gitignore
+
+vendor
+
+*.pem
+env.mk
