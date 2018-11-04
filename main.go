@@ -13,13 +13,13 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/ww24/cloud-iot-mqtt/iot"
 )
 
 const (
 	timeout         = 30 * time.Second
 	protocolVersion = 4 // MQTT 3.1.1
 	clientIDFormat  = "projects/%s/locations/%s/registries/%s/devices/%s"
-	topicFormat     = "/devices/%s/%s"
 )
 
 const (
@@ -83,16 +83,25 @@ func main() {
 
 	opts.SetOnConnectHandler(func(cli mqtt.Client) {
 		{
-			token := cli.Subscribe(fmt.Sprintf(topicFormat, deviceID, "config"), qosAtLeastOnce, func(client mqtt.Client, msg mqtt.Message) {
-				log.Printf("topic: %s, payload: %s\n", msg.Topic(), string(msg.Payload()))
+			token := cli.Subscribe(fmt.Sprintf(iot.TopicFormat, deviceID, "config"), qosAtLeastOnce, func(client mqtt.Client, msg mqtt.Message) {
+				log.Printf("config:: topic: %s, payload: %s\n", msg.Topic(), string(msg.Payload()))
 			})
 			if token.Wait() && token.Error() != nil {
 				log.Fatal(token.Error())
 			}
 		}
 		{
-			token := cli.Subscribe(fmt.Sprintf(topicFormat, deviceID, "state"), qosAtLeastOnce, func(client mqtt.Client, msg mqtt.Message) {
-				log.Printf("topic: %s, payload: %s\n", msg.Topic(), string(msg.Payload()))
+			token := cli.Subscribe(fmt.Sprintf(iot.TopicFormat, deviceID, "state"), qosAtLeastOnce, func(client mqtt.Client, msg mqtt.Message) {
+				log.Printf("state:: topic: %s, payload: %s\n", msg.Topic(), string(msg.Payload()))
+			})
+			if token.Wait() && token.Error() != nil {
+				log.Fatal(token.Error())
+			}
+		}
+		{
+			// https://cloud.google.com/iot/docs/how-tos/commands?hl=ja
+			token := cli.Subscribe(fmt.Sprintf(iot.TopicFormat, deviceID, "commands")+"/#", qosAtLeastOnce, func(client mqtt.Client, msg mqtt.Message) {
+				log.Printf("commands:: topic: %s, payload: %s\n", msg.Topic(), string(msg.Payload()))
 			})
 			if token.Wait() && token.Error() != nil {
 				log.Fatal(token.Error())
@@ -100,26 +109,19 @@ func main() {
 		}
 	})
 
-	cli := mqtt.NewClient(opts)
+	c := iot.NewCloudIotClient(opts)
+	cli := c.Client()
 	defer cli.Disconnect(250)
 
-	if token := cli.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatalf("Error: %+v\n", token.Error())
-	}
-
 	log.Println("CONNECTED!")
-	updateState(cli, "started")
-	defer func() {
-		updateState(cli, "stopped")
-	}()
+	c.UpdateState(deviceID, "started")
+	defer c.UpdateState(deviceID, "stopped")
 
-	{
-		topic := fmt.Sprintf(topicFormat, deviceID, "events/button")
-		token := cli.Publish(topic, qosAtLeastOnce, false, "on")
-		if token.Wait() && token.Error() != nil {
-			log.Fatalf("Error: %+v\n", token.Error())
-		}
-	}
+	c.PublishEvent(deviceID, "button")
+
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	go c.HeartBeat(deviceID, ticker)
 
 	signalHandler()
 }
@@ -131,12 +133,5 @@ func signalHandler() {
 	case sig := <-ch:
 		log.Printf("signal received: %s\n", sig)
 	}
-}
-
-func updateState(cli mqtt.Client, state string) {
-	topic := fmt.Sprintf(topicFormat, deviceID, "state")
-	token := cli.Publish(topic, qosAtLeastOnce, false, state)
-	if token.Wait() && token.Error() != nil {
-		log.Fatalf("Error: %+v\n", token.Error())
-	}
+	os.Exit(0)
 }
