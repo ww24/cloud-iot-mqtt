@@ -1,19 +1,24 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/ww24/cloud-iot-mqtt/iot"
+	"github.com/ww24/cloud-iot-mqtt/payload"
 )
 
 const (
@@ -34,6 +39,7 @@ var (
 	cloudRegion = os.Getenv("CLOUD_REGION")
 	registoryID = os.Getenv("REGISTORY_ID")
 	deviceID    = os.Getenv("DEVICE_ID")
+	endpoint    = os.Getenv("ENDPOINT")
 )
 
 func main() {
@@ -102,6 +108,26 @@ func main() {
 			// https://cloud.google.com/iot/docs/how-tos/commands?hl=ja
 			token := cli.Subscribe(fmt.Sprintf(iot.TopicFormat, deviceID, "commands")+"/#", qosAtLeastOnce, func(client mqtt.Client, msg mqtt.Message) {
 				log.Printf("commands:: topic: %s, payload: %s\n", msg.Topic(), string(msg.Payload()))
+				if strings.HasSuffix(msg.Topic(), "commands/signal") {
+					payload := &payload.Payload{}
+					if err := json.Unmarshal(msg.Payload(), payload); err != nil {
+						log.Println("Err:", err)
+						return
+					}
+					log.Println("call", endpoint)
+					resp, err := http.Post(endpoint, "application/json", bytes.NewReader(msg.Payload()))
+					if err != nil {
+						log.Println("Err:", err)
+						return
+					}
+					defer resp.Body.Close()
+					res, err := ioutil.ReadAll(resp.Body)
+					if err != nil {
+						log.Println("Err:", err)
+						return
+					}
+					log.Println("Response:", string(res))
+				}
 			})
 			if token.Wait() && token.Error() != nil {
 				log.Fatal(token.Error())
