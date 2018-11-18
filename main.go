@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	timeout         = 30 * time.Second
-	protocolVersion = 4 // MQTT 3.1.1
-	clientIDFormat  = "projects/%s/locations/%s/registries/%s/devices/%s"
+	timeout           = 30 * time.Second
+	protocolVersion   = 4 // MQTT 3.1.1
+	clientIDFormat    = "projects/%s/locations/%s/registries/%s/devices/%s"
+	jwtExpireDuration = time.Hour // Max 24 hours.
 )
 
 const (
@@ -40,6 +41,8 @@ var (
 	registoryID = os.Getenv("REGISTORY_ID")
 	deviceID    = os.Getenv("DEVICE_ID")
 	endpoint    = os.Getenv("ENDPOINT")
+
+	c iot.CloudIotClient
 )
 
 func main() {
@@ -51,7 +54,7 @@ func main() {
 	opts.SetClientID(clientID)
 	opts.SetConnectTimeout(timeout)
 	opts.SetKeepAlive(60 * time.Second)
-	opts.SetAutoReconnect(true)
+	opts.SetAutoReconnect(false)
 	opts.SetProtocolVersion(protocolVersion)
 	opts.SetStore(mqtt.NewMemoryStore())
 
@@ -78,7 +81,7 @@ func main() {
 	now := time.Now()
 	t := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.StandardClaims{
 		IssuedAt:  now.Unix(),
-		ExpiresAt: now.Add(time.Hour).Unix(),
+		ExpiresAt: now.Add(jwtExpireDuration).Unix(),
 		Audience:  projectID,
 	})
 	password, err := t.SignedString(cert.PrivateKey)
@@ -87,7 +90,35 @@ func main() {
 	}
 	opts.SetPassword(password)
 
+	opts.SetConnectionLostHandler(func(cli mqtt.Client, err error) {
+		log.Printf("Connection lost reason: %+v\n", err)
+
+		// reconnect
+		now := time.Now()
+		t := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.StandardClaims{
+			IssuedAt:  now.Unix(),
+			ExpiresAt: now.Add(jwtExpireDuration).Unix(),
+			Audience:  projectID,
+		})
+		password, err := t.SignedString(cert.PrivateKey)
+		if err != nil {
+			log.Fatalf("Error: %+v\n", err)
+		}
+		opts.SetPassword(password)
+		connect(opts)
+	})
+
 	opts.SetOnConnectHandler(func(cli mqtt.Client) {
+		go func() {
+			ticker := time.NewTicker(time.Minute)
+			for {
+				select {
+				case t := <-ticker.C:
+					log.Printf("connected: %v, ts: %s \n", cli.IsConnected(), t)
+				}
+			}
+		}()
+
 		{
 			token := cli.Subscribe(fmt.Sprintf(iot.TopicFormat, deviceID, "config"), qosAtLeastOnce, func(client mqtt.Client, msg mqtt.Message) {
 				log.Printf("config:: topic: %s, payload: %s\n", msg.Topic(), string(msg.Payload()))
@@ -135,21 +166,28 @@ func main() {
 		}
 	})
 
-	c := iot.NewCloudIotClient(opts)
+	connect(opts)
 	cli := c.Client()
+	defer c.UpdateState(deviceID, "stopped")
 	defer cli.Disconnect(250)
+
+	// c.PublishEvent(deviceID, "button")
+
+	// ticker := time.NewTicker(time.Second * 5)
+	// defer ticker.Stop()
+	// c.HeartBeat(deviceID, ticker)
+
+	signalHandler()
+}
+
+func connect(opts *mqtt.ClientOptions) {
+	c = iot.NewCloudIotClient(opts)
+	if err := c.Connect(); err != nil {
+		log.Fatalf("Error: %+v\n", err)
+	}
 
 	log.Println("CONNECTED!")
 	c.UpdateState(deviceID, "started")
-	defer c.UpdateState(deviceID, "stopped")
-
-	c.PublishEvent(deviceID, "button")
-
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-	go c.HeartBeat(deviceID, ticker)
-
-	signalHandler()
 }
 
 func signalHandler() {

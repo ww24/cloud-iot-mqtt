@@ -5,3 +5,6 @@ vendor
 
 *.pem
 env.mk
+
+iot_client
+deploy_with_secret.zip

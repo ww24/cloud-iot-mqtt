@@ -18,7 +18,9 @@ const (
 	QosExactlyOnce
 )
 
+// CloudIotClient represents mqtt.Client wrapper.
 type CloudIotClient interface {
+	Connect() error
 	Client() mqtt.Client
 	HeartBeat(deviceID string, ticker *time.Ticker)
 	UpdateState(deviceID, state string) error
@@ -35,14 +37,15 @@ func NewCloudIotClient(opts *mqtt.ClientOptions) CloudIotClient {
 		opts = mqtt.NewClientOptions()
 	}
 
-	cli := mqtt.NewClient(opts)
-	if token := cli.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatalf("Error: %+v\n", token.Error())
-	}
-
 	return &cloudIotClient{
-		client: cli,
+		client: mqtt.NewClient(opts),
 	}
+}
+
+func (c *cloudIotClient) Connect() error {
+	token := c.client.Connect()
+	token.Wait()
+	return token.Error()
 }
 
 func (c *cloudIotClient) Client() mqtt.Client {

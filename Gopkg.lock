@@ -2,74 +2,91 @@
 
 
 [[projects]]
+  digest = "1:5c3894b2aa4d6bead0ceeea6831b305d62879c871780e7b76296ded1b004bc57"
   name = "cloud.google.com/go"
   packages = ["compute/metadata"]
+  pruneopts = "UT"
   revision = "1fd54cf41e6e0e178ffe3c52b0e2260281f603e3"
   version = "v0.32.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:2a6629b03042567e7d6d6ffe36425daf230e349efc8e9f9a7fdccab6d796c719"
   name = "github.com/GoogleCloudPlatform/cloud-functions-go"
   packages = ["nodego"]
+  pruneopts = "UT"
   revision = "ed7ffb0f2ecb0baaf373c5b41a377b2a13aa44b9"
 
 [[projects]]
+  digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
+  pruneopts = "UT"
   revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
   version = "v3.2.0"
 
 [[projects]]
+  digest = "1:184008c955d6a3226b700c13ed0e875a7a051a759618f9bccba9b5c99f17faa5"
   name = "github.com/eclipse/paho.mqtt.golang"
   packages = [
     ".",
-    "packets"
+    "packets",
   ]
+  pruneopts = "UT"
   revision = "36d01c2b4cbeb3d2a12063e4880ce30800af9560"
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
+  pruneopts = "UT"
   revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
   version = "v1.2.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:9ab73c6afa8b3245d321adfe5232df92f404389733e69962e78204322daec8ee"
   name = "golang.org/x/net"
   packages = [
     "context",
     "context/ctxhttp",
     "internal/socks",
     "proxy",
-    "websocket"
+    "websocket",
   ]
+  pruneopts = "UT"
   revision = "afe8f62b1d6bbd81f31868121a50b06d8188e1f9"
 
 [[projects]]
   branch = "master"
+  digest = "1:a092b4d38fd89b648d8275a57bf94f8ab62d09224e83ba105dadab472dc71428"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
     "google",
     "internal",
     "jws",
-    "jwt"
+    "jwt",
   ]
+  pruneopts = "UT"
   revision = "232e45548389bd9357411a6922a07c5fd4068bda"
 
 [[projects]]
   branch = "master"
+  digest = "1:46b14a51f54dc141ecc53864e59f501cc5e1b0d91c5d07c8ac4454d70f710e94"
   name = "google.golang.org/api"
   packages = [
     "cloudiot/v1",
     "gensupport",
     "googleapi",
-    "googleapi/internal/uritemplates"
+    "googleapi/internal/uritemplates",
   ]
+  pruneopts = "UT"
   revision = "04bb50b6b83d0e72253821af8cf3252d8e866517"
 
 [[projects]]
+  digest = "1:d2a8db567a76203e3b41c1f632d86485ffd57f8e650a0d1b19d240671c2fddd7"
   name = "google.golang.org/appengine"
   packages = [
     ".",
@@ -81,14 +98,21 @@
     "internal/modules",
     "internal/remote_api",
     "internal/urlfetch",
-    "urlfetch"
+    "urlfetch",
   ]
+  pruneopts = "UT"
   revision = "4a4468ece617fc8205e99368fa2200e9d1fad421"
   version = "v1.3.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "59db5663b097ee918d5e506b5ef6609ea0e8d94052a8a2c6657a3831c7297e45"
+  input-imports = [
+    "github.com/GoogleCloudPlatform/cloud-functions-go/nodego",
+    "github.com/dgrijalva/jwt-go",
+    "github.com/eclipse/paho.mqtt.golang",
+    "golang.org/x/oauth2/google",
+    "google.golang.org/api/cloudiot/v1",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
